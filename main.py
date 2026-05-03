@@ -14,37 +14,64 @@ app_web = Flask(__name__)
 def home():
     return "OK"
 
-
-# ===== Bot =====
+# =======================
+# Telegram handler
+# =======================
 async def relay(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not update.message:
         return
 
     user_id = update.message.from_user.id
 
-    print("收到:", update.message, flush=True)
-
-    # 白名單
+    # 🔐 白名單
     if user_id not in ALLOWED_USERS:
         return
 
-    # 👉 直接 forward（重點！！）
-    await update.message.forward(chat_id=GROUP_ID)
+    msg = update.message
+
+    # ===== 文字 =====
+    if msg.text:
+        await context.bot.send_message(chat_id=GROUP_ID, text=msg.text)
+
+    # ===== 圖片 =====
+    elif msg.photo:
+        photo = msg.photo[-1].file_id
+        await context.bot.send_photo(chat_id=GROUP_ID, photo=photo, caption=msg.caption or "")
+
+    # ===== 貼圖 =====
+    elif msg.sticker:
+        await context.bot.send_sticker(chat_id=GROUP_ID, sticker=msg.sticker.file_id)
+
+    # ===== GIF / 動圖 =====
+    elif msg.animation:
+        await context.bot.send_animation(chat_id=GROUP_ID, animation=msg.animation.file_id, caption=msg.caption or "")
+
+    print("收到訊息:", user_id, flush=True)
 
 
 def run_web():
-    app_web.run(host="0.0.0.0", port=10000)
+    # Render 必須 bind 0.0.0.0
+    port = int(os.environ.get("PORT", 10000))
+    app_web.run(host="0.0.0.0", port=port)
 
 
 def run_bot():
     app = ApplicationBuilder().token(TOKEN).build()
 
-    # 👉 全部訊息都接
+    # 支援所有訊息類型
     app.add_handler(MessageHandler(filters.ALL, relay))
 
     print("Bot started", flush=True)
-    app.run_polling()
+
+    # ⭐ 重點：避免舊訊息 + 提高穩定性
+    app.run_polling(drop_pending_updates=True)
 
 
 if __name__ == "__main__":
+    from threading import Thread
+
+    # Flask 放背景
+    Thread(target=run_web, daemon=True).start()
+
+    # Bot 主執行
     run_bot()
