@@ -39,7 +39,7 @@ def run_web():
 def run_bot():
     app = ApplicationBuilder().token(TOKEN).build()
 
-    # 👉 改成全部訊息都接
+    # 👉 全部訊息都接
     app.add_handler(MessageHandler(filters.ALL, relay))
 
     print("Bot started", flush=True)
