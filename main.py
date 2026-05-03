@@ -1,4 +1,6 @@
 import os
+import threading
+from flask import Flask
 from telegram import Update
 from telegram.ext import ApplicationBuilder, MessageHandler, ContextTypes, filters
 
@@ -7,7 +9,13 @@ TOKEN = os.getenv("BOT_TOKEN")
 GROUP_ID = -5105827693
 ALLOWED_USERS = [1165688271]
 
-# ===== bot 邏輯 =====
+app_web = Flask(__name__)
+
+@app_web.route("/")
+def home():
+    return "OK"
+
+# ===== bot =====
 async def relay(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not update.message:
         return
@@ -15,7 +23,7 @@ async def relay(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.message.from_user.id
     text = update.message.text
 
-    print("收到訊息:", text, flush=True)
+    print("收到:", text, flush=True)
 
     if user_id not in ALLOWED_USERS:
         return
@@ -29,5 +37,9 @@ def run_bot():
     print("Bot started", flush=True)
     app.run_polling()
 
+def run_web():
+    app_web.run(host="0.0.0.0", port=10000)
+
 if __name__ == "__main__":
-    run_bot()
+    threading.Thread(target=run_bot).start()
+    run_web()
